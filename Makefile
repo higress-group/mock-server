@@ -7,7 +7,7 @@ GIT_TREESTATE = $(if $(shell git diff --quiet || echo 1), clean, dirty)
 BUILDDATE = $(shell date -u +'%Y-%m-%dT%H:%M:%SZ')
 
 # Images management
-REGISTRY ?= higress-registry.cn-hangzhou.cr.aliyuncs.com
+REGISTRY ?= $(IMAGE_REGISTRY)
 REGISTRY_NAMESPACE ?= higress
 
 # Image URL to use all building/pushing image targets

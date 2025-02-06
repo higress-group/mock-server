@@ -11,7 +11,8 @@ on:
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
-
+    env:
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'higress-registry.cn-hangzhou.cr.aliyuncs.com' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -26,11 +27,9 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Set up Docker Buildx (optional for multi-platform builds)
-        uses: docker/setup-buildx-action@v2
-
       - name: Build Docker image with Makefile
         run: |
-          make image-buildx VERSION=${{ github.event.inputs.version }}
+          make image-buildx VERSION=${{ github.event.inputs.version }} REGISTRY=${{ env.IMAGE_REGISTRY }}
+
       - name: Notify success
         run: echo "Docker image built and pushed successfully for version ${{ github.event.inputs.version }}"
