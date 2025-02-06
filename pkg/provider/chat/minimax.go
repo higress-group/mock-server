@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -101,6 +102,9 @@ func (p *minimaxProvider) handleStreamResponse(ctx *gin.Context, chatRequest min
 			}
 			jsonStr, _ := json.Marshal(streamResponse)
 			dataChan <- string(jsonStr)
+
+			// Simulate response delay
+			time.Sleep(200 * time.Millisecond)
 		}
 		stopChan <- true
 	}()

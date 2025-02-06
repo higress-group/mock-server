@@ -30,6 +30,10 @@ var (
 		"/v2/chat/completions",
 		// doubao
 		"/api/v3/chat/completions",
+		// github
+		"/chat/completions",
+		// groq
+		"/openai/v1/chat/completions",
 		// minimax
 		"/v1/text/chatcompletion_v2",
 		"/v1/text/chatcompletion_pro",

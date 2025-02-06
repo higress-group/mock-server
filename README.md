@@ -15,6 +15,11 @@
 
 目前已支持以下供应商：
 
-- 百度 (Baidu)
-- 豆包 (Doubao)
+- OpenAI
+- 文心一言
+- 豆包
 - MiniMax
+- 360智脑
+- GitHub
+- Groq
+- 百川智能

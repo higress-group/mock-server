@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -67,6 +68,9 @@ func (p *openAiProvider) handleStreamResponse(ctx *gin.Context, chatRequest chat
 			streamResponse.Choices = []chatCompletionChoice{streamResponseChoice}
 			jsonStr, _ := json.Marshal(streamResponse)
 			dataChan <- string(jsonStr)
+
+			// Simulate response delay
+			time.Sleep(200 * time.Millisecond)
 		}
 		stopChan <- true
 	}()
