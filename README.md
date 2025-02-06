@@ -13,13 +13,16 @@
 
 ## 支持的供应商
 
-目前已支持以下供应商：
+目前已支持以下 LLM 提供商：
 
-- OpenAI
-- 文心一言
-- 豆包
-- MiniMax
 - 360智脑
+- 百川智能
+- DeepSeek
 - GitHub
 - Groq
-- 百川智能
+- MiniMax
+- OpenAI
+- 智谱AI
+- 文心一言
+- 豆包
+- 零一万物

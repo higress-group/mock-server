@@ -42,6 +42,8 @@ var (
 		// qwen
 		"/compatible-mode/v1/chat/completions",
 		"/api/v1/services/aigc/text-generation/generation",
+		// zhipu
+		"/api/paas/v4/chat/completions",
 	}
 )
 
