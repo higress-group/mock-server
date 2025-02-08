@@ -15,14 +15,16 @@
 
 目前已支持以下 LLM 提供商：
 
-- 360智脑
-- 百川智能
+- 360 智脑
 - DeepSeek
 - GitHub
 - Groq
 - MiniMax
 - OpenAI
-- 智谱AI
-- 文心一言
+- Together AI
+- 百川智能
 - 豆包
 - 零一万物
+- 文心一言
+- 智谱 AI
+- 阶跃星辰
