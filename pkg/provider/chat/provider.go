@@ -22,6 +22,7 @@ type requestHandler interface {
 var (
 	chatCompletionsHandlers = []requestHandler{
 		&minimaxProvider{},
+		&difyProvider{},
 		&qwenProvider{},
 		&openAiProvider{}, // As the last fallback
 	}

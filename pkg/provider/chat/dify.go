@@ -26,7 +26,7 @@ type difyProvider struct {
 
 func (p *difyProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 	context, _ := getRequestContext(ctx)
-	return context.Host == difyDomain
+	return context.Host == difyDomain && context.Path == difyCompletionPath
 }
 
 func (p *difyProvider) HandleChatCompletions(ctx *gin.Context) {
