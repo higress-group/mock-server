@@ -24,6 +24,7 @@ var (
 		&minimaxProvider{},
 		&difyProvider{},
 		&qwenProvider{},
+		&difyProvider{},
 		&openAiProvider{}, // As the last fallback
 	}
 
