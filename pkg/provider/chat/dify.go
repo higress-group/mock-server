@@ -1,8 +1,6 @@
 package chat
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -74,13 +72,6 @@ func (p *difyProvider) sendErrorResponse(ctx *gin.Context, statusCode int, messa
 	})
 }
 
-func generateUUID() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
-// TODO Mode
 func (p *difyProvider) handleStreamResponse(ctx *gin.Context, chatRequest difyChatRequest, botType string, reply string) {
 	utils.SetEventStreamHeaders(ctx)
 	dataChan := make(chan string)
@@ -92,7 +83,7 @@ func (p *difyProvider) handleStreamResponse(ctx *gin.Context, chatRequest difyCh
 				Event:          "agent_thought",
 				Answer:         string(s),
 				ConversationId: chatRequest.ConversationId,
-				MessageId:      generateUUID(),
+				MessageId:      completionMockId,
 			}
 			jsonStr, _ := json.Marshal(response)
 			dataChan <- string(jsonStr)
@@ -114,13 +105,9 @@ func (p *difyProvider) handleStreamResponse(ctx *gin.Context, chatRequest difyCh
 				Event:          "message_end",
 				Answer:         reply,
 				ConversationId: chatRequest.ConversationId,
-				MessageId:      generateUUID(),
+				MessageId:      completionMockId,
 				MetaData: difyMetaData{
-					Usage: usage{
-						PromptTokens:     len(chatRequest.Query),
-						CompletionTokens: len(reply),
-						TotalTokens:      len(chatRequest.Query) + len(reply),
-					},
+					Usage: completionMockUsage,
 				},
 			}
 			jsonStr, _ := json.Marshal(finalResponse)
@@ -134,14 +121,10 @@ func (p *difyProvider) handleNonStreamResponse(ctx *gin.Context, chatRequest dif
 	response := difyChatResponse{
 		Answer:         reply,
 		ConversationId: chatRequest.ConversationId,
-		MessageId:      generateUUID(),
+		MessageId:      completionMockId,
 		CreateAt:       time.Now().Unix(),
 		MetaData: difyMetaData{
-			Usage: usage{
-				PromptTokens:     len(chatRequest.Query),
-				CompletionTokens: len(reply),
-				TotalTokens:      len(chatRequest.Query) + len(reply),
-			},
+			Usage: completionMockUsage,
 		},
 	}
 	ctx.JSON(http.StatusOK, response)
