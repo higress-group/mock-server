@@ -16,9 +16,11 @@
 目前已支持以下 LLM 提供商：
 
 - 360 智脑
+- Dify
 - DeepSeek
 - GitHub
 - Groq
+- Mistral
 - MiniMax
 - OpenAI
 - Together AI
@@ -28,4 +30,3 @@
 - 文心一言
 - 智谱 AI
 - 阶跃星辰
-- Dify
