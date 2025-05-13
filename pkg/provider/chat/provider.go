@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"llm-mock-server/pkg/log"
 	"llm-mock-server/pkg/provider"
+
+	"github.com/gin-gonic/gin"
 )
 
 type requestHandler interface {
@@ -21,6 +22,7 @@ type requestHandler interface {
 var (
 	chatCompletionsHandlers = []requestHandler{
 		&minimaxProvider{},
+		&difyProvider{},
 		&qwenProvider{},
 		&openAiProvider{}, // As the last fallback
 	}
@@ -44,6 +46,8 @@ var (
 		"/api/v1/services/aigc/text-generation/generation",
 		// zhipu
 		"/api/paas/v4/chat/completions",
+		// dify
+		"/v1/completion-messages",
 	}
 )
 
