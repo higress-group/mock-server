@@ -48,6 +48,7 @@ var (
 		"/api/paas/v4/chat/completions",
 		// dify
 		"/v1/completion-messages",
+		"/v1/chat-messages",
 	}
 )
 

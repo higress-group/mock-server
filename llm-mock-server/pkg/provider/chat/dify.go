@@ -15,8 +15,10 @@ import (
 
 const (
 	difyDomain         = "api.dify.ai"
+	difyChatPath       = "/v1/chat-messages"
 	difyCompletionPath = "/v1/completion-messages"
-	BotTypeCompletion  = "Completion"
+	botTypeCompletion  = "Completion"
+	botTypeChat        = "Chat"
 )
 
 type difyProvider struct {
@@ -24,7 +26,7 @@ type difyProvider struct {
 
 func (p *difyProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 	context, _ := getRequestContext(ctx)
-	return context.Host == difyDomain && context.Path == difyCompletionPath
+	return context.Host == difyDomain && (context.Path == difyChatPath || context.Path == difyCompletionPath)
 }
 
 func (p *difyProvider) HandleChatCompletions(ctx *gin.Context) {
@@ -53,12 +55,28 @@ func (p *difyProvider) HandleChatCompletions(ctx *gin.Context) {
 
 	// Generate reply based on the query
 	reply := prompt2Response(chatRequest.Query)
+	botType := botTypeChat
+	if ctx.Request.URL.Path == difyCompletionPath {
+		botType = botTypeCompletion
+		query, ok := chatRequest.Inputs["query"]
+		if !ok {
+			p.sendErrorResponse(ctx, 400, "Invalid request: query is required for bot type completion")
+			return
+		}
+
+		if query, ok := query.(string); ok {
+			reply = prompt2Response(query)
+		} else {
+			p.sendErrorResponse(ctx, 400, "Invalid request: query must be a string for bot type completion")
+			return
+		}
+	}
 
 	// Handle stream or non-stream response based on the request
 	if chatRequest.ResponseMode == "streaming" {
-		p.handleStreamResponse(ctx, chatRequest, BotTypeCompletion, reply)
+		p.handleStreamResponse(ctx, chatRequest, botType, reply)
 	} else {
-		p.handleNonStreamResponse(ctx, chatRequest, BotTypeCompletion, reply)
+		p.handleNonStreamResponse(ctx, chatRequest, botType, reply)
 	}
 }
 
@@ -82,8 +100,9 @@ func (p *difyProvider) handleStreamResponse(ctx *gin.Context, chatRequest difyCh
 			response := difyChunkChatResponse{
 				Event:          "agent_thought",
 				Answer:         string(s),
-				ConversationId: chatRequest.ConversationId,
+				ConversationId: completionMockId,
 				MessageId:      completionMockId,
+				CreatedAt:      completionMockCreated,
 			}
 			jsonStr, _ := json.Marshal(response)
 			dataChan <- string(jsonStr)
@@ -104,7 +123,7 @@ func (p *difyProvider) handleStreamResponse(ctx *gin.Context, chatRequest difyCh
 			finalResponse := difyChunkChatResponse{
 				Event:          "message_end",
 				Answer:         reply,
-				ConversationId: chatRequest.ConversationId,
+				ConversationId: completionMockId,
 				MessageId:      completionMockId,
 				MetaData: difyMetaData{
 					Usage: completionMockUsage,
@@ -122,7 +141,7 @@ func (p *difyProvider) handleNonStreamResponse(ctx *gin.Context, chatRequest dif
 		Answer:         reply,
 		ConversationId: chatRequest.ConversationId,
 		MessageId:      completionMockId,
-		CreateAt:       time.Now().Unix(),
+		CreatedAt:      completionMockCreated,
 		MetaData: difyMetaData{
 			Usage: completionMockUsage,
 		},
@@ -153,7 +172,7 @@ type difyChatResponse struct {
 	ConversationId string       `json:"conversation_id"`
 	MessageId      string       `json:"message_id"`
 	Answer         string       `json:"answer"`
-	CreateAt       int64        `json:"create_at"`
+	CreatedAt      int64        `json:"created_at"`
 	Data           difyData     `json:"data"`
 	MetaData       difyMetaData `json:"metadata"`
 }
@@ -163,6 +182,7 @@ type difyChunkChatResponse struct {
 	ConversationId string       `json:"conversation_id"`
 	MessageId      string       `json:"message_id"`
 	Answer         string       `json:"answer"`
+	CreatedAt      int64        `json:"created_at"`
 	Data           difyData     `json:"data"`
 	MetaData       difyMetaData `json:"metadata"`
 }
