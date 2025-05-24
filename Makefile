@@ -12,11 +12,15 @@ REGISTRY_NAMESPACE ?= higress
 
 # Image URL to use all building/pushing image targets
 VERSION ?= $(GIT_VERSION)
-LLM_MOCK_IMG ?= "${REGISTRY}/${REGISTRY_NAMESPACE}/llm-mock:${VERSION}"
+IMAGE = ${REGISTRY}/${REGISTRY_NAMESPACE}/${PROJECT}:${VERSION}
 
 ## docker buildx support platform
 PLATFORMS ?= linux/arm64,linux/amd64
 
 .PHONY: image-buildx
-image-buildx:  ## Build and push docker image for the llm-mock for cross-platform support
-	docker buildx build --push --platform=$(PLATFORMS) --tag ${LLM_MOCK_IMG} --build-arg BUILDPLATFORM=${BUILDPLATFORM} .
+image-buildx:  ## Build and push docker image for the specified project
+	@if [ -z "$(PROJECT)" ]; then \
+		echo "Error: PROJECT is not set"; \
+		exit 1; \
+	fi
+	docker buildx build --push --platform=$(PLATFORMS) --tag ${IMAGE} ./$(PROJECT)

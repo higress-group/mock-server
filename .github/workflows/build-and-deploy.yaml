@@ -8,6 +8,14 @@ on:
         required: false
         default: 'latest'
         type: string
+      project:
+        description: 'Project to build'
+        type: choice
+        options:
+          - ext-auth-mock-server
+          - llm-mock-server
+        required: true
+
 jobs:
   build_and_push:
     runs-on: ubuntu-latest
@@ -27,9 +35,9 @@ jobs:
           username: ${{ secrets.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_PASSWORD }}
 
-      - name: Build Docker image with Makefile
+      - name: Build Docker image
         run: |
-          make image-buildx VERSION=${{ github.event.inputs.version }} REGISTRY=${{ env.IMAGE_REGISTRY }}
+          make image-buildx PROJECT=${{ github.event.inputs.project }} VERSION=${{ github.event.inputs.version }} REGISTRY=${{ env.IMAGE_REGISTRY }}
 
       - name: Notify success
-        run: echo "Docker image built and pushed successfully for version ${{ github.event.inputs.version }}"
+        run: echo "Docker image built and pushed successfully for project ${{ github.event.inputs.project }} and version ${{ github.event.inputs.version }}"
