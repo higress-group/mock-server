@@ -12,8 +12,8 @@ on:
         description: 'Project to build'
         type: choice
         options:
-          - ext-auth-mock-server
           - llm-mock-server
+          - ext-auth-mock-server
         required: true
 
 jobs:

@@ -2,13 +2,10 @@ module llm-mock-server
 
 go 1.21.0
 
-toolchain go1.23.3
-
 require (
 	github.com/gin-contrib/cors v1.7.3
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/validator/v10 v10.23.0
-	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	go.uber.org/zap v1.27.0
