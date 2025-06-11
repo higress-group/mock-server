@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"time"
 
+	"llm-mock-server/pkg/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"llm-mock-server/pkg/utils"
 )
 
-type openAiProvider struct {
-}
+type openAiProvider struct{}
 
 func (p *openAiProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 	return true
@@ -60,10 +60,11 @@ func (p *openAiProvider) handleStreamResponse(ctx *gin.Context, chatRequest chat
 	}
 	streamResponseChoice := chatCompletionChoice{Delta: &chatMessage{}}
 	go func() {
-		for i, s := range response {
+		responseRunes := []rune(response)
+		for i, s := range responseRunes {
 			streamResponseChoice.Delta.Content = string(s)
-			if i == len(response)-1 {
-				streamResponseChoice.FinishReason = stopReason
+			if i == len(responseRunes)-1 {
+				streamResponseChoice.FinishReason = ptr(stopReason)
 			}
 			streamResponse.Choices = []chatCompletionChoice{streamResponseChoice}
 			jsonStr, _ := json.Marshal(streamResponse)
@@ -105,9 +106,9 @@ func createChatCompletionResponse(model, response string) chatCompletionResponse
 					Role:    roleAssistant,
 					Content: response,
 				},
-				FinishReason: stopReason,
+				FinishReason: ptr(stopReason),
 			},
 		},
-		Usage: completionMockUsage,
+		Usage: &completionMockUsage,
 	}
 }

@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"llm-mock-server/pkg/utils"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"llm-mock-server/pkg/utils"
 )
 
 const (
@@ -18,8 +19,7 @@ const (
 	minimaxChatCompletionProPath = "/v1/text/chatcompletion_pro"
 )
 
-type minimaxProvider struct {
-}
+type minimaxProvider struct{}
 
 func (p *minimaxProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 	context, _ := getRequestContext(ctx)
