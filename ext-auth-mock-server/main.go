@@ -155,21 +155,52 @@ func withHeaders(next http.Handler) http.Handler {
 	})
 }
 
+type customMux struct {
+	mux    *http.ServeMux
+	routes map[string]bool
+}
+
+func (cm *customMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	// 检查路由是否存在
+	if _, exists := cm.routes[path]; !exists {
+		log.Printf("No route matched for request: %s %s", r.Method, path)
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	// 否则交给原始 mux 处理
+	cm.mux.ServeHTTP(w, r)
+}
+
 func main() {
 	mux := http.NewServeMux()
+	customRouter := &customMux{
+		mux:    mux,
+		routes: make(map[string]bool),
+	}
+
+	// 注册路由并记录路由映射
+	registerRoute := func(pattern string, handler http.HandlerFunc) {
+		mux.HandleFunc(pattern, handler)
+		customRouter.routes[pattern] = true
+	}
 
 	// 基础测试接口
-	mux.HandleFunc("/always-200", always200Handler)
-	mux.HandleFunc("/prefix/always-200/", always200Handler)
-	mux.HandleFunc("/always-500", always500Handler)
-	mux.HandleFunc("/prefix/always-500/", always500Handler)
+	registerRoute("/always-200", always200Handler)
+	registerRoute("/prefix/always-200/", always200Handler)
+	registerRoute("/always-500", always500Handler)
+	registerRoute("/prefix/always-500/", always500Handler)
 
 	// 针对 ext-auth 插件中 authorization_request 配置中 with_request_body 为 true 的场景
 	// 校验请求体是否存在，不存在时返回 400
-	mux.HandleFunc("/require-request-body-200", requireRequestBody200Handler)
-	mux.HandleFunc("/prefix/require-request-body-200/", requireRequestBody200Handler)
+	registerRoute("/require-request-body-200", requireRequestBody200Handler)
+	registerRoute("/prefix/require-request-body-200/", requireRequestBody200Handler)
+
+	wrappedRouter := withHeaders(customRouter)
 
 	log.Printf("Starting server on :8090")
 	log.Printf("Server version: %s", serverVersion)
-	log.Fatal(http.ListenAndServe(":8090", withHeaders(mux)))
+	log.Fatal(http.ListenAndServe(":8090", wrappedRouter))
 }
