@@ -1,5 +1,10 @@
 package chat
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 const (
 	completionMockId = "chatcmpl-llm-mock"
 
@@ -57,9 +62,150 @@ type function struct {
 	Parameters  map[string]interface{} `json:"parameters,omitempty"`
 }
 
+// toolChoice represents the different types of tool choice options
+// It can be a string ("auto", "none", "required") or an object with specific configurations
 type toolChoice struct {
-	Type     string   `json:"type"`
-	Function function `json:"function"`
+	// For string values: "auto", "none", "required"
+	StringValue *string `json:"-"`
+
+	// For allowed_tools configuration
+	AllowedTools *allowedToolsChoice `json:"-"`
+
+	// For function tool choice
+	FunctionChoice *functionToolChoice `json:"-"`
+
+	// For custom tool choice
+	CustomChoice *customToolChoice `json:"-"`
+}
+
+// allowedToolsChoice represents the allowed_tools configuration
+type allowedToolsChoice struct {
+	Type         string        `json:"type"`          // Always "allowed_tools"
+	AllowedTools []allowedTool `json:"allowed_tools"` // Constrains the tools available to the model
+}
+
+// allowedTool represents a tool in the allowed tools list
+type allowedTool struct {
+	Mode     string   `json:"mode"`     // Tool mode
+	Function function `json:"function"` // Function definition
+}
+
+// functionToolChoice represents a specific function tool choice
+type functionToolChoice struct {
+	Type     string   `json:"type"`     // Always "function"
+	Function function `json:"function"` // The specific function to call
+}
+
+// customToolChoice represents a custom tool choice
+type customToolChoice struct {
+	Type   string     `json:"type"`   // Always "custom"
+	Custom customTool `json:"custom"` // The custom tool configuration
+}
+
+// customTool represents a custom tool configuration
+type customTool struct {
+	Name string `json:"name"` // Custom tool name
+}
+
+// UnmarshalJSON implements custom JSON unmarshaling for toolChoice
+// to handle string values ("auto", "none", "required") and different object types
+func (tc *toolChoice) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as string first
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		// Validate string value - only allow "auto", "none", "required"
+		switch str {
+		case "auto", "none", "required":
+			tc.StringValue = &str
+			return nil
+		default:
+			return fmt.Errorf("invalid tool_choice string value: %q, must be one of: \"auto\", \"none\", \"required\"", str)
+		}
+	}
+
+	// If not a string, try to unmarshal as object
+	// First, check the type field to determine which object type it is
+	var typeCheck struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &typeCheck); err != nil {
+		return err
+	}
+
+	switch typeCheck.Type {
+	case "allowed_tools":
+		var allowedTools allowedToolsChoice
+		if err := json.Unmarshal(data, &allowedTools); err != nil {
+			return err
+		}
+		tc.AllowedTools = &allowedTools
+	case "function":
+		var functionChoice functionToolChoice
+		if err := json.Unmarshal(data, &functionChoice); err != nil {
+			return err
+		}
+		tc.FunctionChoice = &functionChoice
+	case "custom":
+		var customChoice customToolChoice
+		if err := json.Unmarshal(data, &customChoice); err != nil {
+			return err
+		}
+		tc.CustomChoice = &customChoice
+	default:
+		// For backward compatibility, try to unmarshal as the old format
+		var functionChoice functionToolChoice
+		if err := json.Unmarshal(data, &functionChoice); err != nil {
+			return err
+		}
+		tc.FunctionChoice = &functionChoice
+	}
+
+	return nil
+}
+
+// MarshalJSON implements custom JSON marshaling for toolChoice
+func (tc *toolChoice) MarshalJSON() ([]byte, error) {
+	if tc.StringValue != nil {
+		return json.Marshal(*tc.StringValue)
+	}
+	if tc.AllowedTools != nil {
+		return json.Marshal(tc.AllowedTools)
+	}
+	if tc.FunctionChoice != nil {
+		return json.Marshal(tc.FunctionChoice)
+	}
+	if tc.CustomChoice != nil {
+		return json.Marshal(tc.CustomChoice)
+	}
+	return json.Marshal(nil)
+}
+
+// IsString returns true if the tool choice is a string value
+func (tc *toolChoice) IsString() bool {
+	return tc.StringValue != nil
+}
+
+// GetStringValue returns the string value if it exists
+func (tc *toolChoice) GetStringValue() string {
+	if tc.StringValue != nil {
+		return *tc.StringValue
+	}
+	return ""
+}
+
+// IsAllowedTools returns true if the tool choice is an allowed_tools configuration
+func (tc *toolChoice) IsAllowedTools() bool {
+	return tc.AllowedTools != nil
+}
+
+// IsFunction returns true if the tool choice is a function configuration
+func (tc *toolChoice) IsFunction() bool {
+	return tc.FunctionChoice != nil
+}
+
+// IsCustom returns true if the tool choice is a custom configuration
+func (tc *toolChoice) IsCustom() bool {
+	return tc.CustomChoice != nil
 }
 
 type chatCompletionResponse struct {
