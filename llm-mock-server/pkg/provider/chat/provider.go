@@ -88,7 +88,11 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 		for _, route := range chatCompletionsRoutes {
 			server.POST(route, handleChatCompletions)
 		}
-		log.Warnf("Unknown provider type: %s, enabled all routes", providerType)
+		if providerType != "" {
+			log.Warnf("Unknown provider type: %s, enabled all routes", providerType)
+		} else {
+			log.Infof("No provider type specified, enabled all routes")
+		}
 	}
 }
 

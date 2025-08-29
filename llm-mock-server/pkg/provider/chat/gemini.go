@@ -19,7 +19,11 @@ const (
 type geminiProvider struct{}
 
 func (p *geminiProvider) ShouldHandleRequest(ctx *gin.Context) bool {
-	context, _ := getRequestContext(ctx)
+	context, err := getRequestContext(ctx)
+	if err != nil {
+		log.Errorf("get request context failed: %v", err)
+		return false
+	}
 	path := context.Path
 
 	// Gemini使用 /v1beta/models/{model}:generateContent 或 :streamGenerateContent 格式
