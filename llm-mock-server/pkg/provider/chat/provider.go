@@ -20,11 +20,12 @@ type requestHandler interface {
 }
 
 var (
-	chatCompletionsHandlers = []requestHandler{
-		&minimaxProvider{},
-		&difyProvider{},
-		&qwenProvider{},
-		&openAiProvider{}, // As the last fallback
+	chatCompletionsHandlers = map[string]requestHandler{
+		"minimax": &minimaxProvider{},
+		"dify":    &difyProvider{},
+		"qwen":    &qwenProvider{},
+		"gemini":  &geminiProvider{},
+		"openai":  &openAiProvider{}, // As the last fallback
 	}
 
 	chatCompletionsRoutes = []string{
@@ -49,12 +50,45 @@ var (
 		// dify
 		"/v1/completion-messages",
 		"/v1/chat-messages",
+		// gemini
+		"/v1beta/models/:modelAndAction",
 	}
 )
 
-func SetupRoutes(server *gin.Engine) {
-	for _, route := range chatCompletionsRoutes {
-		server.POST(route, handleChatCompletions)
+// SetupRoutes 支持按provider类型配置不同的路由
+func SetupRoutes(server *gin.Engine, providerType string) {
+	// 根据provider类型配置对应的路由
+	switch strings.ToLower(providerType) {
+	case "minimax":
+		server.POST("/v1/text/chatcompletion_v2", chatCompletionsHandlers["openai"].HandleChatCompletions)
+		server.POST("/v1/text/chatcompletion_pro", chatCompletionsHandlers["minimax"].HandleChatCompletions)
+	case "dify":
+		server.POST("/v1/completion-messages", chatCompletionsHandlers["dify"].HandleChatCompletions)
+		server.POST("/v1/chat-messages", chatCompletionsHandlers["dify"].HandleChatCompletions)
+	case "qwen":
+		server.POST("/compatible-mode/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+		server.POST("/api/v1/services/aigc/text-generation/generation", chatCompletionsHandlers["qwen"].HandleChatCompletions)
+	case "gemini":
+		server.POST("/v1beta/models/:modelAndAction", chatCompletionsHandlers["gemini"].HandleChatCompletions)
+	case "doubao":
+		server.POST("/api/v3/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "baidu":
+		server.POST("/v2/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "zhipu":
+		server.POST("/api/paas/v4/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "github":
+		server.POST("/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "groq":
+		server.POST("/openai/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
+		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
+		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	default:
+		// 未知的provider类型，启用所有路由
+		for _, route := range chatCompletionsRoutes {
+			server.POST(route, handleChatCompletions)
+		}
+		log.Warnf("Unknown provider type: %s, enabled all routes", providerType)
 	}
 }
 
