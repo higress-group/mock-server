@@ -52,8 +52,6 @@ var (
 		"/v1/chat-messages",
 		// gemini
 		"/v1beta/models/:modelAndAction",
-		// cloudflare
-		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
 	}
 )
 
@@ -82,8 +80,6 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 		server.POST("/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	case "groq":
 		server.POST("/openai/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
-	case "cloudflare":
-		server.POST("/client/v4/accounts/:accountId/ai/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
 		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
