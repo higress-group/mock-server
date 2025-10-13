@@ -50,7 +50,7 @@ var (
 		// dify
 		"/v1/completion-messages",
 		"/v1/chat-messages",
-		// gemini
+		// geminiß
 		"/v1beta/models/:modelAndAction",
 		// cloudflare
 		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
