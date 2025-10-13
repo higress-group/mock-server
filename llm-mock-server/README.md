@@ -29,3 +29,4 @@
 - 智谱 AI
 - 阶跃星辰
 - Dify
+- cloudflare
