@@ -16,7 +16,10 @@
 目前已支持以下 LLM 提供商：
 
 - 360 智脑
+- Cloudflare
 - DeepSeek
+- Dify
+- Gemini
 - GitHub
 - Groq
 - MiniMax
@@ -28,5 +31,3 @@
 - 文心一言
 - 智谱 AI
 - 阶跃星辰
-- Dify
-- cloudflare

@@ -1,5 +1,3 @@
-### IntelliJ IDEA ###
 .idea
-
-### VS Code ###
 .vscode/
+.DS_Store
