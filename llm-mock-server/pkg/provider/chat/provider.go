@@ -86,7 +86,7 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 	case "cloudflare":
 		server.POST("/client/v4/accounts/:accountId/ai/v1/chat/completions", chatCompletionsHandlers["cloudflare"].HandleChatCompletions)
 	// 其他 cases...
-	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
+	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun", "ollama":
 		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	default:
