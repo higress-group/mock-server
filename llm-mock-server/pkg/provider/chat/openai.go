@@ -9,7 +9,6 @@ import (
 	"llm-mock-server/pkg/utils"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
 type openAiProvider struct{}
@@ -19,27 +18,11 @@ func (p *openAiProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 }
 
 func (p *openAiProvider) HandleChatCompletions(ctx *gin.Context) {
-	// Bind request body
 	var chatRequest chatCompletionRequest
-	if err := ctx.ShouldBindJSON(&chatRequest); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if !bindAndValidateChatRequest(ctx, &chatRequest) {
 		return
 	}
-
-	// Validate request body
-	if err := utils.Validate.Struct(chatRequest); err != nil {
-		validationErrors := err.(validator.ValidationErrors)
-		for _, fieldError := range validationErrors {
-			ctx.JSON(http.StatusBadRequest, gin.H{"error": fieldError.Error()})
-			return
-		}
-	}
-
-	prompt := ""
-	if chatRequest.Messages[len(chatRequest.Messages)-1].IsStringContent() {
-		prompt = chatRequest.Messages[len(chatRequest.Messages)-1].StringContent()
-	}
-	response := prompt2Response(prompt)
+	response := prompt2Response(lastStringPrompt(&chatRequest))
 
 	if chatRequest.Stream {
 		p.handleStreamResponse(ctx, chatRequest, response)
@@ -58,17 +41,21 @@ func (p *openAiProvider) handleStreamResponse(ctx *gin.Context, chatRequest chat
 		Created: completionMockCreated,
 		Model:   chatRequest.Model,
 	}
-	streamResponseChoice := chatCompletionChoice{Delta: &chatMessage{}}
 	go func() {
 		responseRunes := []rune(response)
 		for i, s := range responseRunes {
-			streamResponseChoice.Delta.Content = string(s)
+			choice := chatCompletionChoice{Delta: &chatMessage{Content: string(s)}}
 			if i == len(responseRunes)-1 {
-				streamResponseChoice.FinishReason = ptr(stopReason)
+				choice.FinishReason = ptr(stopReason)
 			}
-			streamResponse.Choices = []chatCompletionChoice{streamResponseChoice}
+			streamResponse.Choices = []chatCompletionChoice{choice}
 			jsonStr, _ := json.Marshal(streamResponse)
-			dataChan <- string(jsonStr)
+			select {
+			case dataChan <- string(jsonStr):
+			case <-ctx.Request.Context().Done():
+				// client gone; stop producing to avoid leaking this goroutine
+				return
+			}
 
 			// Simulate response delay
 			time.Sleep(200 * time.Millisecond)

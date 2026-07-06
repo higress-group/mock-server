@@ -26,7 +26,7 @@ func (p *geminiProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 	}
 	path := context.Path
 
-	// Gemini使用 /v1beta/models/{model}:generateContent 或 :streamGenerateContent 格式
+	// Gemini uses the /v1beta/models/{model}:generateContent or :streamGenerateContent format
 	return context.Host == geminiDomain &&
 		strings.HasPrefix(path, geminiPath) &&
 		(strings.HasSuffix(path, ":generateContent") ||
@@ -34,41 +34,39 @@ func (p *geminiProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 }
 
 func (p *geminiProvider) HandleChatCompletions(ctx *gin.Context) {
-	// 验证Authorization header
-	authHeader := ctx.GetHeader("x-goog-api-key")
-	if authHeader == "" {
-		p.sendErrorResponse(ctx, http.StatusUnauthorized, "Unauthorized: Please provide an API key")
+	apiKey := ctx.GetHeader("x-goog-api-key")
+	if apiKey == "" {
+		apiKey = ctx.Query("key")
+	}
+	if apiKey == "" {
+		p.sendErrorResponse(ctx, http.StatusForbidden, "Method doesn't allow unregistered callers (callers without established identity). Please use API Key or other form of API consumer identity to call this API.")
 		return
 	}
 
-	modelAndAction := strings.SplitN(ctx.Param("modelAndAction"), ":", 2)
-	if len(modelAndAction) < 2 {
+	model, action, ok := parseGeminiModelAndAction(ctx.Request.URL.Path)
+	if !ok {
 		p.sendErrorResponse(ctx, http.StatusBadRequest, "Invalid model and action")
 		return
 	}
-
-	model := modelAndAction[0]
-	action := modelAndAction[1]
 	log.Infof("gemini request model: %s, action: %s", model, action)
 
-	// 解析请求体
+	// Parse request body
 	var geminiRequest geminiGenerateContentRequest
 	if err := ctx.ShouldBindJSON(&geminiRequest); err != nil {
 		p.sendErrorResponse(ctx, http.StatusBadRequest, fmt.Sprintf("Invalid request: %v", err.Error()))
 		return
 	}
 
-	// 验证请求体
+	// Validate request body
 	if err := p.validateRequest(&geminiRequest); err != nil {
 		p.sendErrorResponse(ctx, http.StatusBadRequest, fmt.Sprintf("Validation error: %v", err.Error()))
 		return
 	}
 
-	// 检查是否为流式请求
-	path := ctx.Request.URL.Path
-	isStreaming := strings.HasSuffix(path, ":streamGenerateContent")
+	// Check whether this is a streaming request
+	isStreaming := action == "streamGenerateContent"
 
-	// 生成回复内容
+	// Generate the reply content
 	content := p.generateResponse(&geminiRequest)
 
 	if isStreaming {
@@ -76,6 +74,18 @@ func (p *geminiProvider) HandleChatCompletions(ctx *gin.Context) {
 	} else {
 		p.handleNonStreamResponse(ctx, &geminiRequest, content)
 	}
+}
+
+// parseGeminiModelAndAction extracts the model and action from a path of the form /v1beta/models/{model}:{action}
+func parseGeminiModelAndAction(path string) (string, string, bool) {
+	if !strings.HasPrefix(path, geminiPath) {
+		return "", "", false
+	}
+	parts := strings.SplitN(strings.TrimPrefix(path, geminiPath), ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func (p *geminiProvider) validateRequest(req *geminiGenerateContentRequest) error {
@@ -98,32 +108,40 @@ func (p *geminiProvider) validateRequest(req *geminiGenerateContentRequest) erro
 }
 
 func (p *geminiProvider) generateResponse(req *geminiGenerateContentRequest) string {
-	// 生成mock回复内容
+	// Generate the mock reply content
 	content := "This is a mock response from Gemini provider. "
-	if len(req.Contents) > 0 && len(req.Contents[0].Parts) > 0 {
-		text := req.Contents[0].Parts[0].Text
-		if len(text) > 50 {
-			content += "You said: " + text[:50] + "..."
-		} else {
-			content += "You said: " + text
+	if len(req.Contents) > 0 {
+		lastContent := req.Contents[len(req.Contents)-1]
+		if len(lastContent.Parts) > 0 {
+			runes := []rune(lastContent.Parts[0].Text)
+			if len(runes) > 50 {
+				content += "You said: " + string(runes[:50]) + "..."
+			} else {
+				content += "You said: " + string(runes)
+			}
 		}
 	}
 	return content
 }
 
 func (p *geminiProvider) handleStreamResponse(ctx *gin.Context, req *geminiGenerateContentRequest, response string) {
-	// 设置流式响应头
+	// Set streaming response headers
 	ctx.Header("Content-Type", "text/event-stream")
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")
 	ctx.Header("Access-Control-Allow-Origin", "*")
 
-	// 将回复内容分割成单词进行流式传输
+	// Split the reply into words and stream them
 	words := strings.Fields(response)
 	totalWords := len(words)
 
 	for i, word := range words {
-		// 创建流式响应块
+		select {
+		case <-ctx.Request.Context().Done():
+			return
+		default:
+		}
+
 		chunk := geminiGenerateContentResponse{
 			Candidates: []geminiCandidate{
 				{
@@ -131,39 +149,44 @@ func (p *geminiProvider) handleStreamResponse(ctx *gin.Context, req *geminiGener
 						Parts: []geminiPart{
 							{Text: word + " "},
 						},
+						Role: "model",
 					},
-					FinishReason: "STOP",
+					Index: 0,
 				},
+			},
+			UsageMetadata: &geminiUsageMetadata{
+				PromptTokenCount:     completionMockUsage.PromptTokens,
+				CandidatesTokenCount: completionMockUsage.CompletionTokens,
+				TotalTokenCount:      completionMockUsage.TotalTokens,
 			},
 		}
 
-		// 最后一个块设置结束原因
+		// The final chunk carries the finish reason
 		if i == totalWords-1 {
 			chunk.Candidates[0].FinishReason = "STOP"
-		} else {
-			chunk.Candidates[0].FinishReason = ""
 		}
 
-		// 发送数据块 - 使用与OpenAI provider相同的方式
+		// Send the data chunk, in the same way as the OpenAI provider
 		data, err := json.Marshal(chunk)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal response"})
 			return
 		}
 
-		// 使用streamEvent来渲染SSE数据
+		// Render SSE data via streamEvent and flush immediately so each event arrives on its own
 		ctx.Render(-1, streamEvent{Data: "data: " + string(data)})
+		ctx.Writer.Flush()
 
-		// 模拟流式传输延迟
-		time.Sleep(50 * time.Millisecond)
+		select {
+		case <-ctx.Request.Context().Done():
+			return
+		case <-time.After(50 * time.Millisecond):
+		}
 	}
-
-	// 发送结束标记 - 使用与OpenAI provider相同的方式
-	ctx.Render(-1, streamEvent{Data: "data: [DONE]"})
 }
 
 func (p *geminiProvider) handleNonStreamResponse(ctx *gin.Context, req *geminiGenerateContentRequest, response string) {
-	// 创建非流式响应
+	// Build the non-streaming response
 	geminiResponse := geminiGenerateContentResponse{
 		Candidates: []geminiCandidate{
 			{
@@ -171,12 +194,16 @@ func (p *geminiProvider) handleNonStreamResponse(ctx *gin.Context, req *geminiGe
 					Parts: []geminiPart{
 						{Text: response},
 					},
+					Role: "model",
 				},
 				FinishReason: "STOP",
+				Index:        0,
 			},
 		},
-		PromptFeedback: geminiPromptFeedback{
-			BlockReason: "BLOCK_REASON_UNSPECIFIED",
+		UsageMetadata: &geminiUsageMetadata{
+			PromptTokenCount:     completionMockUsage.PromptTokens,
+			CandidatesTokenCount: completionMockUsage.CompletionTokens,
+			TotalTokenCount:      completionMockUsage.TotalTokens,
 		},
 	}
 
@@ -188,24 +215,43 @@ func (p *geminiProvider) sendErrorResponse(ctx *gin.Context, statusCode int, mes
 		"error": gin.H{
 			"code":    statusCode,
 			"message": message,
+			"status":  geminiErrorStatus(statusCode),
 		},
 	})
 }
 
-// Gemini请求和响应的数据结构
+// geminiErrorStatus returns the google.rpc.Code name that the real Gemini API pairs with the given HTTP status code
+func geminiErrorStatus(statusCode int) string {
+	switch statusCode {
+	case http.StatusBadRequest:
+		return "INVALID_ARGUMENT"
+	case http.StatusUnauthorized:
+		return "UNAUTHENTICATED"
+	case http.StatusForbidden:
+		return "PERMISSION_DENIED"
+	case http.StatusNotFound:
+		return "NOT_FOUND"
+	case http.StatusTooManyRequests:
+		return "RESOURCE_EXHAUSTED"
+	default:
+		return "INTERNAL"
+	}
+}
+
+// Data structures of Gemini requests and responses
 type geminiGenerateContentRequest struct {
-	Contents         []geminiContent         `json:"contents" validate:"required,min=1"`
-	SafetySettings   []geminiSafetySetting   `json:"safety_settings,omitempty"`
-	GenerationConfig *geminiGenerationConfig `json:"generation_config,omitempty"`
+	Contents         []geminiContent         `json:"contents"`
+	SafetySettings   []geminiSafetySetting   `json:"safetySettings,omitempty"`
+	GenerationConfig *geminiGenerationConfig `json:"generationConfig,omitempty"`
 }
 
 type geminiContent struct {
-	Parts []geminiPart `json:"parts" validate:"required,min=1"`
+	Parts []geminiPart `json:"parts"`
 	Role  string       `json:"role,omitempty"`
 }
 
 type geminiPart struct {
-	Text string `json:"text" validate:"required"`
+	Text string `json:"text"`
 }
 
 type geminiSafetySetting struct {
@@ -215,21 +261,24 @@ type geminiSafetySetting struct {
 
 type geminiGenerationConfig struct {
 	Temperature     float64 `json:"temperature,omitempty"`
-	TopP            float64 `json:"top_p,omitempty"`
-	TopK            int     `json:"top_k,omitempty"`
-	MaxOutputTokens int     `json:"max_output_tokens,omitempty"`
+	TopP            float64 `json:"topP,omitempty"`
+	TopK            int     `json:"topK,omitempty"`
+	MaxOutputTokens int     `json:"maxOutputTokens,omitempty"`
 }
 
 type geminiGenerateContentResponse struct {
-	Candidates     []geminiCandidate    `json:"candidates"`
-	PromptFeedback geminiPromptFeedback `json:"prompt_feedback,omitempty"`
+	Candidates    []geminiCandidate    `json:"candidates"`
+	UsageMetadata *geminiUsageMetadata `json:"usageMetadata,omitempty"`
 }
 
 type geminiCandidate struct {
 	Content      geminiContent `json:"content"`
-	FinishReason string        `json:"finish_reason"`
+	FinishReason string        `json:"finishReason,omitempty"`
+	Index        int           `json:"index"`
 }
 
-type geminiPromptFeedback struct {
-	BlockReason string `json:"block_reason"`
+type geminiUsageMetadata struct {
+	PromptTokenCount     int `json:"promptTokenCount"`
+	CandidatesTokenCount int `json:"candidatesTokenCount"`
+	TotalTokenCount      int `json:"totalTokenCount"`
 }

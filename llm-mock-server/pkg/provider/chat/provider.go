@@ -20,13 +20,25 @@ type requestHandler interface {
 }
 
 var (
-	chatCompletionsHandlers = map[string]requestHandler{
-		"minimax": &minimaxProvider{},
-		"dify":    &difyProvider{},
-		"qwen":    &qwenProvider{},
-		"gemini":  &geminiProvider{},
-		"openai":  &openAiProvider{}, // As the last fallback
+	orderedChatCompletionsHandlers = []struct {
+		name    string
+		handler requestHandler
+	}{
+		{"minimax", &minimaxProvider{}},
+		{"dify", &difyProvider{}},
+		{"qwen", &qwenProvider{}},
+		{"gemini", &geminiProvider{}},
+		{"moonshot", &moonshotProvider{}},
+		{"openai", &openAiProvider{}}, // As the last fallback
 	}
+
+	chatCompletionsHandlers = func() map[string]requestHandler {
+		handlers := make(map[string]requestHandler, len(orderedChatCompletionsHandlers))
+		for _, entry := range orderedChatCompletionsHandlers {
+			handlers[entry.name] = entry.handler
+		}
+		return handlers
+	}()
 
 	chatCompletionsRoutes = []string{
 		// baidu
@@ -52,9 +64,8 @@ var (
 		"/v1/chat-messages",
 		// gemini
 		"/v1beta/models/:modelAndAction",
-		// cloudflare 
-		"/client/v4/accounts/:accountId/ai/v1/chat/completions", 
-
+		// cloudflare
+		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
 	}
 )
 
@@ -84,8 +95,10 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 	case "groq":
 		server.POST("/openai/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	case "cloudflare":
-		server.POST("/client/v4/accounts/:accountId/ai/v1/chat/completions", chatCompletionsHandlers["cloudflare"].HandleChatCompletions)
+		server.POST("/client/v4/accounts/:accountId/ai/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	// 其他 cases...
+	case "moonshot":
+		server.POST("/v1/chat/completions", chatCompletionsHandlers["moonshot"].HandleChatCompletions)
 	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
 		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
@@ -106,9 +119,9 @@ func handleChatCompletions(context *gin.Context) {
 	if err := buildRequestContext(context); err != nil {
 		return
 	}
-	for _, handler := range chatCompletionsHandlers {
-		if handler.ShouldHandleRequest(context) {
-			handler.HandleChatCompletions(context)
+	for _, entry := range orderedChatCompletionsHandlers {
+		if entry.handler.ShouldHandleRequest(context) {
+			entry.handler.HandleChatCompletions(context)
 			return
 		}
 	}
