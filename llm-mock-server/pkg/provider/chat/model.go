@@ -224,6 +224,7 @@ type chatCompletionChoice struct {
 	Delta        *chatMessage           `json:"delta,omitempty"`
 	FinishReason *string                `json:"finish_reason"`
 	Logprobs     map[string]interface{} `json:"logprobs"`
+	Usage        *usage                 `json:"usage,omitempty"`
 }
 
 type usage struct {
