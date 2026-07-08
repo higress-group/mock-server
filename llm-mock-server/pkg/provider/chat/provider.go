@@ -28,6 +28,7 @@ var (
 		{"dify", &difyProvider{}},
 		{"qwen", &qwenProvider{}},
 		{"gemini", &geminiProvider{}},
+		{"vertex", &vertexProvider{}},
 		{"moonshot", &moonshotProvider{}},
 		{"openai", &openAiProvider{}}, // As the last fallback
 	}
@@ -64,6 +65,10 @@ var (
 		"/v1/chat-messages",
 		// gemini
 		"/v1beta/models/:modelAndAction",
+		// vertex (Express Mode path used by ai-proxy)
+		"/v1/publishers/google/models/:modelAndAction",
+		// vertex (standard path)
+		"/v1/projects/:project/locations/:location/publishers/google/models/:modelAndAction",
 		// cloudflare
 		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
 	}
@@ -84,6 +89,9 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 		server.POST("/api/v1/services/aigc/text-generation/generation", chatCompletionsHandlers["qwen"].HandleChatCompletions)
 	case "gemini":
 		server.POST("/v1beta/models/:modelAndAction", chatCompletionsHandlers["gemini"].HandleChatCompletions)
+	case "vertex":
+		server.POST("/v1/publishers/google/models/:modelAndAction", chatCompletionsHandlers["vertex"].HandleChatCompletions)
+		server.POST("/v1/projects/:project/locations/:location/publishers/google/models/:modelAndAction", chatCompletionsHandlers["vertex"].HandleChatCompletions)
 	case "doubao":
 		server.POST("/api/v3/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	case "baidu":
