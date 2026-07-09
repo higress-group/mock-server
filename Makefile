@@ -23,4 +23,4 @@ image-buildx:  ## Build and push docker image for the specified project
 		echo "Error: PROJECT is not set"; \
 		exit 1; \
 	fi
-	docker buildx build --push --platform=$(PLATFORMS) --tag ${IMAGE} ./$(PROJECT)
+	docker buildx build --push --platform=$(PLATFORMS) --build-arg BUILD=$(BUILD) --tag ${IMAGE} ./$(PROJECT)

@@ -1,5 +1,8 @@
 FROM golang:1.21.0-alpine3.17 AS builder
 
+# git is required when go mod download falls back to direct (VCS) mode
+RUN apk add --no-cache git
+
 # Build Args
 ARG BUILD
 WORKDIR /app
