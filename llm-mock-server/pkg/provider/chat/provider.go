@@ -29,6 +29,7 @@ var (
 		{"qwen", &qwenProvider{}},
 		{"gemini", &geminiProvider{}},
 		{"vertex", &vertexProvider{}},
+		{"bedrock", &bedrockProvider{}},
 		{"moonshot", &moonshotProvider{}},
 		{"openai", &openAiProvider{}}, // As the last fallback
 	}
@@ -69,6 +70,9 @@ var (
 		"/v1/publishers/google/models/:modelAndAction",
 		// vertex (standard path)
 		"/v1/projects/:project/locations/:location/publishers/google/models/:modelAndAction",
+		// bedrock (Converse / Converse Stream paths used by ai-proxy)
+		"/model/:modelId/converse",
+		"/model/:modelId/converse-stream",
 		// cloudflare
 		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
 	}
@@ -92,6 +96,9 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 	case "vertex":
 		server.POST("/v1/publishers/google/models/:modelAndAction", chatCompletionsHandlers["vertex"].HandleChatCompletions)
 		server.POST("/v1/projects/:project/locations/:location/publishers/google/models/:modelAndAction", chatCompletionsHandlers["vertex"].HandleChatCompletions)
+	case "bedrock":
+		server.POST("/model/:modelId/converse", chatCompletionsHandlers["bedrock"].HandleChatCompletions)
+		server.POST("/model/:modelId/converse-stream", chatCompletionsHandlers["bedrock"].HandleChatCompletions)
 	case "doubao":
 		server.POST("/api/v3/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
 	case "baidu":
