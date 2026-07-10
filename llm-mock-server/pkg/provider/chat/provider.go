@@ -30,6 +30,10 @@ var (
 		{"gemini", &geminiProvider{}},
 		{"vertex", &vertexProvider{}},
 		{"moonshot", &moonshotProvider{}},
+		{"claude", &claudeProvider{}},
+		{"cohere", &cohereProvider{}},
+		{"hunyuan", &hunyuanProvider{}},
+		{"deepl", &deeplProvider{}},
 		{"openai", &openAiProvider{}}, // As the last fallback
 	}
 
@@ -71,6 +75,14 @@ var (
 		"/v1/projects/:project/locations/:location/publishers/google/models/:modelAndAction",
 		// cloudflare
 		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
+		// claude (anthropic)
+		"/v1/messages",
+		// cohere (v1 chat)
+		"/v1/chat",
+		// hunyuan (tencent native TC3 ChatCompletions)
+		"/",
+		// deepl (translate)
+		"/v2/translate",
 	}
 )
 
