@@ -37,7 +37,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          make image-buildx PROJECT=${{ github.event.inputs.project }} VERSION=${{ github.event.inputs.version }} REGISTRY=${{ env.IMAGE_REGISTRY }}
+          make image-buildx PROJECT=${{ github.event.inputs.project }} VERSION=${{ github.event.inputs.version }} REGISTRY=${{ env.IMAGE_REGISTRY }} BUILD=CI
 
       - name: Notify success
         run: echo "Docker image built and pushed successfully for project ${{ github.event.inputs.project }} and version ${{ github.event.inputs.version }}"
