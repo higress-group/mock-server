@@ -35,6 +35,7 @@ var (
 		{"cohere", &cohereProvider{}},
 		{"hunyuan", &hunyuanProvider{}},
 		{"deepl", &deeplProvider{}},
+		{"spark", &sparkProvider{}},
 		{"openai", &openAiProvider{}}, // As the last fallback
 	}
 
@@ -126,6 +127,8 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 	// 其他 cases...
 	case "moonshot":
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["moonshot"].HandleChatCompletions)
+	case "spark":
+		server.POST("/v1/chat/completions", chatCompletionsHandlers["spark"].HandleChatCompletions)
 	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
 		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
