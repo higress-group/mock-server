@@ -43,7 +43,10 @@ func Run(option *options.Option) error {
 	chat.SetupRoutes(server, option.ProviderType)
 
 	// embeddings
+	// openai-compatible providers (hunyuan, etc.)
 	server.POST("/v1/embeddings", embeddings.HandleEmbeddings)
+	// baidu (v2 API)
+	server.POST("/v2/embeddings", embeddings.HandleEmbeddings)
 
 	log.Infof("Starting server on port %d", option.ServerPort)
 	return server.Run(fmt.Sprintf(":%d", option.ServerPort))

@@ -13,12 +13,21 @@ type requestHandler interface {
 	HandleEmbeddings(context *gin.Context)
 }
 
-var chatCompletionsHandlers []requestHandler
+var (
+	orderedEmbeddingsHandlers = []struct {
+		name    string
+		handler requestHandler
+	}{
+		{"openai", &openAiProvider{}},
+	}
+)
 
+// HandleEmbeddings dispatches an embeddings request to the first registered
+// handler that accepts it.
 func HandleEmbeddings(context *gin.Context) {
-	for _, handler := range chatCompletionsHandlers {
-		if handler.ShouldHandleRequest(context) {
-			handler.HandleEmbeddings(context)
+	for _, entry := range orderedEmbeddingsHandlers {
+		if entry.handler.ShouldHandleRequest(context) {
+			entry.handler.HandleEmbeddings(context)
 			return
 		}
 	}
