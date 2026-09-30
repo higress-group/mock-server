@@ -50,10 +50,19 @@ func (p *hunyuanProvider) HandleChatCompletions(ctx *gin.Context) {
 		return
 	}
 	// The native TC3 API is selected by the X-TC-Action / X-TC-Version headers; ai-proxy always
-	// injects them (X-TC-Action: ChatCompletions, X-TC-Version: 2023-09-01).
-	if ctx.GetHeader("X-TC-Action") != "ChatCompletions" || ctx.GetHeader("X-TC-Version") != "2023-09-01" {
+	// injects them (X-TC-Version: 2023-09-01, with X-TC-Action ChatCompletions or Embeddings).
+	if ctx.GetHeader("X-TC-Version") != "2023-09-01" {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"Response": gin.H{"Error": gin.H{"Code": "InvalidAction", "Message": "invalid X-TC-Action / X-TC-Version"}},
+			"Response": gin.H{"Error": gin.H{"Code": "InvalidAction", "Message": "invalid X-TC-Version"}},
+		})
+		return
+	}
+	if action := ctx.GetHeader("X-TC-Action"); action == "Embeddings" {
+		p.handleEmbeddingsRequest(ctx)
+		return
+	} else if action != "ChatCompletions" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"Response": gin.H{"Error": gin.H{"Code": "InvalidAction", "Message": "invalid X-TC-Action"}},
 		})
 		return
 	}
@@ -72,6 +81,51 @@ func (p *hunyuanProvider) HandleChatCompletions(ctx *gin.Context) {
 	} else {
 		p.handleNonStreamResponse(ctx, response)
 	}
+}
+
+// hunyuanEmbeddingsRequest is the native Tencent Hunyuan Embeddings request shape.
+type hunyuanEmbeddingsRequest struct {
+	Model string   `json:"Model"`
+	Input []string `json:"Input"`
+}
+
+// mockHunyuanEmbedding mirrors the fixed vector used by the OpenAI-compatible
+// embeddings simulation, so conformance assertions look the same either way.
+var mockHunyuanEmbedding = []float64{0.1, 0.2, 0.3, 0.4}
+
+// handleEmbeddingsRequest simulates the native Hunyuan Embeddings action:
+// one deterministic embedding per input string, echoing the request model.
+func (p *hunyuanProvider) handleEmbeddingsRequest(ctx *gin.Context) {
+	var req hunyuanEmbeddingsRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"Response": gin.H{"Error": gin.H{"Message": err.Error()}}})
+		return
+	}
+	if len(req.Input) == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"Response": gin.H{"Error": gin.H{"Message": "Input must not be empty"}}})
+		return
+	}
+
+	tokens := 0
+	for _, s := range req.Input {
+		tokens += len([]rune(s))
+	}
+	if tokens == 0 {
+		tokens = 1
+	}
+
+	embeddings := make([]gin.H, 0, len(req.Input))
+	for i := range req.Input {
+		embeddings = append(embeddings, gin.H{"Embedding": mockHunyuanEmbedding, "Index": i})
+	}
+	ctx.Header("X-TC-RequestId", completionMockId)
+	ctx.JSON(http.StatusOK, gin.H{
+		"Response": gin.H{
+			"RequestId":  completionMockId,
+			"Embeddings": embeddings,
+			"Usage":      gin.H{"TotalTokens": tokens},
+		},
+	})
 }
 
 func (p *hunyuanProvider) handleNonStreamResponse(ctx *gin.Context, response string) {
