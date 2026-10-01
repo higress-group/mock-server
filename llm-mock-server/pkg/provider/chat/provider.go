@@ -81,6 +81,8 @@ var (
 		"/client/v4/accounts/:accountId/ai/v1/chat/completions",
 		// claude (anthropic)
 		"/v1/messages",
+		// bedrock mantle (anthropic-compatible)
+		"/anthropic/v1/messages",
 		// cohere (v1 chat)
 		"/v1/chat",
 		// hunyuan (tencent native TC3 ChatCompletions)

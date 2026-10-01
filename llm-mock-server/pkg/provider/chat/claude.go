@@ -14,6 +14,10 @@ import (
 const (
 	claudeDomain       = "api.anthropic.com"
 	claudeMessagesPath = "/v1/messages"
+	// bedrockMantleMessagesPath is the Bedrock mantle endpoint, which speaks the
+	// same Anthropic messages protocol; ai-proxy routes ApiNameAnthropicMessages
+	// there with x-api-key auth and the anthropic-version header.
+	bedrockMantleMessagesPath = "/anthropic/v1/messages"
 	// claudeMockId is an Anthropic-style message id. ai-proxy passes it through as the OpenAI response id.
 	claudeMockId    = "msg_llm-mock"
 	claudeMockModel = "claude-3-5-sonnet-20241022"
@@ -60,7 +64,11 @@ func (p *claudeProvider) ShouldHandleRequest(ctx *gin.Context) bool {
 		log.Errorf("get request context failed: %v", err)
 		return false
 	}
-	return context.Host == claudeDomain && context.Path == claudeMessagesPath
+	if context.Host == claudeDomain && context.Path == claudeMessagesPath {
+		return true
+	}
+	// The Bedrock mantle endpoint speaks the same protocol on its own path.
+	return context.Path == bedrockMantleMessagesPath
 }
 
 func (p *claudeProvider) HandleChatCompletions(ctx *gin.Context) {
