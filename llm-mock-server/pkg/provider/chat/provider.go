@@ -35,6 +35,7 @@ var (
 		{"cohere", &cohereProvider{}},
 		{"hunyuan", &hunyuanProvider{}},
 		{"deepl", &deeplProvider{}},
+		{"coze", &cozeProvider{}},
 		{"openai", &openAiProvider{}}, // As the last fallback
 	}
 
@@ -87,6 +88,8 @@ var (
 		"/",
 		// deepl (translate)
 		"/v2/translate",
+		// coze (v3 chat)
+		"/v3/chat",
 	}
 )
 
@@ -129,6 +132,8 @@ func SetupRoutes(server *gin.Engine, providerType string) {
 	case "openai", "ai360", "deepseek", "together", "baichuan", "yi", "stepfun":
 		// 这些provider都使用OpenAI兼容的格式，调用openAiProvider
 		server.POST("/v1/chat/completions", chatCompletionsHandlers["openai"].HandleChatCompletions)
+	case "coze":
+		server.POST("/v3/chat", chatCompletionsHandlers["coze"].HandleChatCompletions)
 	default:
 		// 未知的provider类型，启用所有路由
 		for _, route := range chatCompletionsRoutes {
